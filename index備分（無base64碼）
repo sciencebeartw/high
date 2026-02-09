@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>山熊高中部 - 學生專區</title>
+    
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f5f5f7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden; 
+        }
+        
+        /* 啟動畫面 Logo */
+        .splash-logo {
+            width: 180px;
+            height: auto;
+            max-height: 200px;
+            background-color: transparent; 
+            box-shadow: none;
+            border-radius: 0;
+            object-fit: contain;
+            animation: breathe 2s infinite ease-in-out;
+        }
+
+        /* 教學卡片 */
+        #install-guide {
+            display: none; /* 預設隱藏 */
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-top: 30px;
+            padding: 25px 20px;
+            background: white;
+            border-radius: 20px;
+            width: 85%;
+            max-width: 340px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .guide-logo {
+            width: 100px;
+            height: auto;
+            margin-bottom: 15px;
+            object-fit: contain;
+            background-color: transparent;
+        }
+
+        h1 { font-size: 22px; color: #1d1d1f; margin: 0 0 20px 0; font-weight: 700; }
+        
+        /* 步驟清單容器 - 保持置中 */
+        .step-list {
+            text-align: left;
+            width: fit-content;
+            margin: 0 auto 25px auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 隱藏不同模式的區塊，由 JS 控制顯示 */
+        .mode-block { display: none; }
+
+        .step {
+            font-size: 15px;
+            color: #444;
+            margin-bottom: 15px;
+            line-height: 1.6;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .step-num {
+            background: #0071e3;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        /* LINE 警告區塊 */
+        #line-warning {
+            background-color: #fff4e5;
+            color: #663c00;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 15px;
+            margin-bottom: 25px;
+            border: 1px solid #ffcc80;
+            width: 100%;
+            box-sizing: border-box;
+            line-height: 1.6;
+            text-align: center; /* 強制置中 */
+        }
+
+        /* --- 圖示繪製區 --- */
+        
+        /* iOS 分享圖示 */
+        .share-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            vertical-align: -4px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23007AFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8'/%3E%3Cpolyline points='16 6 12 2 8 6'/%3E%3Cline x1='12' y1='2' x2='12' y2='15'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* 畫出「直立三個點」圖示 */
+        .dots-icon {
+            display: inline-block;
+            font-style: normal;
+            font-weight: bold;
+            font-size: 18px;
+            line-height: 1;
+            color: #444; /* 深灰色 */
+            vertical-align: -1px;
+            margin: 0 2px;
+        }
+
+        .btn {
+            background: #0071e3;
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 99px;
+            font-size: 16px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        @keyframes breathe {
+            0% { transform: scale(0.97); opacity: 0.9; }
+            50% { transform: scale(1.03); opacity: 1; }
+            100% { transform: scale(0.97); opacity: 0.9; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 🔴 請填入 Base64 或 GitHub 圖片網址 -->
+    <img src="★★請填入Base64或圖片網址★★" alt="山熊高中部" class="splash-logo">
+
+    <div id="install-guide">
+        <!-- 🔴 請填入 Base64 或 GitHub 圖片網址 -->
+        <img src="★★請填入Base64或圖片網址★★" class="guide-logo">
+        
+        <h1>安裝高中部專區</h1>
+
+        <div id="guide-line" class="mode-block">
+            <div id="line-warning">
+                ⚠️ 偵測到您正在使用 LINE<br>請依下列步驟切換至<br><strong>「瀏覽器」</strong>
+            </div>
+            
+            <div class="step-list">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div>點選角落的「 <span class="dots-icon">⋮</span> 」圖示</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div>選擇 <strong>「在瀏覽器中開啟」</strong><br><span style="font-size:13px; color:#888;">(iPhone用戶請以Safari開啟)</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="guide-ios" class="mode-block">
+            <div class="step-list">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div>找到並點擊 <span class="share-icon"></span> <strong>分享</strong> 按鈕</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div>滑動選單並選擇<strong>「加入主畫面」</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="guide-android" class="mode-block">
+            <div class="step-list">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div>點擊右上角 <span class="dots-icon">⋮</span> 選單圖示</div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div>選擇 <strong>「加入主畫面」</strong><br>或「安裝應用程式」</div>
+                </div>
+            </div>
+        </div>
+
+        <a href="#" id="direct-link" class="btn">直接進入網頁版</a>
+    </div>
+
+    <script>
+        // ★★★ 你的 GAS 網址 (已填入) ★★★
+        const TARGET_URL = "https://script.google.com/macros/s/AKfycbxEAilokM887eUQN-1H1YeoT_TinlibY9S-Di8DlAk_GAigHJjfowShlGklvL0eoMm4PQ/exec";
+        
+        document.getElementById('direct-link').href = TARGET_URL;
+
+        const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+        // --- 智慧偵測系統 ---
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        
+        // 1. 偵測 LINE
+        const isLine = (ua.indexOf("Line") > -1);
+        
+        // 2. 偵測 Android
+        const isAndroid = /Android/i.test(ua);
+
+        // 3. 偵測 iOS (iPhone/iPad)
+        
+        if (isStandalone) {
+            // APP 模式：0秒跳轉
+            document.getElementById('install-guide').style.display = 'none';
+            window.location.replace(TARGET_URL);
+        } else {
+            // 瀏覽器模式：顯示教學
+            document.querySelector('.splash-logo').style.display = 'none';
+            document.getElementById('install-guide').style.display = 'flex';
+
+            // ★★★ 三段變身邏輯 ★★★
+            if (isLine) {
+                // 變身 1: LINE 模式
+                document.getElementById('guide-line').style.display = 'block';
+            } else if (isAndroid) {
+                // 變身 2: Android 模式
+                document.getElementById('guide-android').style.display = 'block';
+            } else {
+                // 變身 3: iOS/其他 模式
+                document.getElementById('guide-ios').style.display = 'block';
+            }
+        }
+    </script>
+
+</body>
+</html>
