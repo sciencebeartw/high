@@ -1,0 +1,21 @@
+{
+    "name": "山熊升大",
+    "short_name": "山熊升大",
+    "description": "山熊升大學生端 App",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#f2f3f7",
+    "theme_color": "#1565C0",
+    "icons": [
+        {
+            "src": "bearhigh-icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "bearhigh-icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
