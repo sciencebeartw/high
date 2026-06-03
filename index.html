@@ -1310,8 +1310,8 @@
             return String(value || "").replace(/[.#$[\]\/]/g, ",");
         }
 
-        function buildScoreQueueKey(grade, name, exam) {
-            return toFirebaseKey([grade, name, exam].join("|"));
+        function buildScoreQueueKey(grade, studentId, exam) {
+            return toFirebaseKey([grade, studentId, exam].join("|"));
         }
 
         function hasScoreValue(value) {
@@ -1320,6 +1320,57 @@
 
         function normalizeLoginPassword(value) {
             return String(value || "").replace(/-/g, "").trim();
+        }
+
+        function getStudentNodeId(data, fallbackId) {
+            const student = (data && data.student) || {};
+            return String(student.id || data.studentId || fallbackId || "").trim();
+        }
+
+        function studentMatchesPassword(data, pass) {
+            const student = (data && data.student) || {};
+            const inputPwd = normalizeLoginPassword(pass);
+            const storedPwd = normalizeLoginPassword(data && data.sysPwd);
+            const parentPwd = normalizeLoginPassword(student.parent_phone);
+            const studentPwd = normalizeLoginPassword(student.student_phone);
+            const fatherPwd = normalizeLoginPassword(student.father_phone);
+            if (storedPwd) return inputPwd === storedPwd;
+            return (parentPwd && inputPwd === parentPwd) ||
+                (studentPwd && inputPwd === studentPwd) ||
+                (fatherPwd && inputPwd === fatherPwd);
+        }
+
+        function withStudentId(data, fallbackId) {
+            const id = getStudentNodeId(data, fallbackId);
+            if (!data.student) data.student = {};
+            if (id && !data.student.id) data.student.id = id;
+            data.studentId = id;
+            return data;
+        }
+
+        function normalizeStudentOption(item) {
+            if (item && typeof item === "object") {
+                return {
+                    id: String(item.id || "").trim(),
+                    name: String(item.name || item.id || "").trim(),
+                    grade: String(item.grade || "").trim()
+                };
+            }
+            const raw = String(item || "").trim();
+            if (raw.indexOf("\t") > -1) {
+                const parts = raw.split("\t");
+                return { id: parts[0] || "", name: parts.slice(1).join("\t") || parts[0] || "", grade: "" };
+            }
+            return { id: "", name: raw, grade: "" };
+        }
+
+        function escapeHtml(value) {
+            return String(value || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
         }
 
         let activeRealtimeRefs = [];
@@ -1366,76 +1417,116 @@
             return {
                     getStudentData: async function(name, pass) {
                         try {
-                            const safeName = name.replace(/[.#$[\]]/g, ',');
-                            db.ref('/high/students/' + safeName).once('value').then(snap => {
-                                if (snap.exists()) {
-                                    const ref = db.ref('/high/students/' + safeName);
-                                    const initialVal = snap.val();
-                                    const initialStudentInfo = initialVal.student || {};
-                                    const initialInputPwd = normalizeLoginPassword(pass);
-                                    const initialStoredPwd = (initialVal.sysPwd || "").toString().trim();
-                                    const initialParentPwd = normalizeLoginPassword(initialStudentInfo.parent_phone);
-                                    const initialStudentPwd = normalizeLoginPassword(initialStudentInfo.student_phone);
-                                    const initialPassCorrect = initialStoredPwd
-                                        ? initialInputPwd === initialStoredPwd
-                                        : (initialParentPwd && initialInputPwd === initialParentPwd) || (initialStudentPwd && initialInputPwd === initialStudentPwd);
-                                    if (!initialPassCorrect) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
+                            const loginName = String(name || "").trim();
+                            const loginKey = toFirebaseKey(loginName);
+                            const indexSnap = await db.ref('/high/loginIndex/' + loginKey).once('value');
+                            const indexVal = indexSnap.val();
 
-                                    listenToValue(ref, snap2 => {
+                            if (indexVal) {
+                                const ids = Object.keys(indexVal);
+                                const matches = [];
+                                for (const id of ids) {
+                                    const ref = db.ref('/high/students/' + toFirebaseKey(id));
+                                    const snap = await ref.once('value');
+                                    const val = snap.val();
+                                    if (!val || !val.student || val.student.name !== loginName) continue;
+                                    if (studentMatchesPassword(val, pass)) matches.push({ id: id, ref: ref });
+                                }
+                                if (matches.length === 1) {
+                                    const matched = matches[0];
+                                    listenToValue(matched.ref, snap2 => {
                                         const val = snap2.val();
                                         if (!val) { if(onSuccess) onSuccess({success: false, msg: "找不到該學生"}); return; }
-                                        const studentInfo = val.student || {};
-                                        const inputPwd = normalizeLoginPassword(pass);
-                                        const storedPwd = (val.sysPwd || "").toString().trim();
-                                        const parentPwd = normalizeLoginPassword(studentInfo.parent_phone);
-                                        const studentPwd = normalizeLoginPassword(studentInfo.student_phone);
-                                        const isPassCorrect = storedPwd
-                                            ? inputPwd === storedPwd
-                                            : (parentPwd && inputPwd === parentPwd) || (studentPwd && inputPwd === studentPwd);
-                                        if (!isPassCorrect) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
+                                        if (!studentMatchesPassword(val, pass)) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
                                         val.success = true;
-                                        if(onSuccess) onSuccess(val);
+                                        if(onSuccess) onSuccess(withStudentId(val, matched.id));
                                     }, err => { if(onErr) onErr(err); });
-                                } else {
-                                    db.ref('/high/teachers/' + safeName).once('value').then(snap3 => {
-                                        if (snap3.exists()) {
-                                            const ref = db.ref('/high/teachers/' + safeName);
-                                            const initialTeacher = snap3.val();
-                                            const initialTeacherPwd = (initialTeacher.password || "").toString().trim();
-                                            if (initialTeacherPwd !== pass.toString().trim()) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
-
-                                            listenToValue(ref, snap4 => {
-                                                const val = snap4.val();
-                                                if (!val) { if(onSuccess) onSuccess({success: false, msg: "找不到該老師"}); return; }
-                                                const storedPwd = (val.password || "").toString().trim();
-                                                if (storedPwd !== pass.toString().trim()) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
-                                                val.success = true;
-
-                                            // 動態判斷：如果是 admin 登入，且密碼驗證通過，則給予上帝視角權限
-                                            if (name.toLowerCase() === "admin" || (val.account && val.account.toLowerCase() === "admin")) {
-                                                val.isAdmin = true;
-                                                val.token = "local-bypass";
-                                            }
-
-                                            if(onSuccess) onSuccess(val);
-                                        }, err => { if(onErr) onErr(err); });
-                                    } else {
-                                        if(onSuccess) onSuccess({success: false, msg: "帳號或密碼錯誤"});
-                                    }
-                                }).catch(err => { if(onErr) onErr(err); });
+                                    return;
+                                }
+                                if (matches.length > 1) {
+                                    if(onSuccess) onSuccess({success: false, msg: "同名且密碼相同，請改用學生手機或聯絡山熊確認"});
+                                    return;
+                                }
+                                if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"});
+                                return;
                             }
-                        }).catch(err => { if(onErr) onErr(err); });
-                    } catch(e) { if(onErr) onErr(e); }
+
+                            const legacyStudentKey = toStudentKey(loginName);
+                            const legacyRef = db.ref('/high/students/' + legacyStudentKey);
+                            const legacySnap = await legacyRef.once('value');
+                            if (legacySnap.exists()) {
+                                const initialVal = legacySnap.val();
+                                if (!studentMatchesPassword(initialVal, pass)) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
+                                listenToValue(legacyRef, snap2 => {
+                                    const val = snap2.val();
+                                    if (!val) { if(onSuccess) onSuccess({success: false, msg: "找不到該學生"}); return; }
+                                    if (!studentMatchesPassword(val, pass)) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
+                                    val.success = true;
+                                    if(onSuccess) onSuccess(withStudentId(val, legacyStudentKey));
+                                }, err => { if(onErr) onErr(err); });
+                                return;
+                            }
+
+                            const teacherKey = toStudentKey(loginName);
+                            const teacherSnap = await db.ref('/high/teachers/' + teacherKey).once('value');
+                            if (teacherSnap.exists()) {
+                                const ref = db.ref('/high/teachers/' + teacherKey);
+                                const initialTeacher = teacherSnap.val();
+                                const initialTeacherPwd = (initialTeacher.password || "").toString().trim();
+                                if (initialTeacherPwd !== pass.toString().trim()) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
+
+                                listenToValue(ref, snap4 => {
+                                    const val = snap4.val();
+                                    if (!val) { if(onSuccess) onSuccess({success: false, msg: "找不到該老師"}); return; }
+                                    const storedPwd = (val.password || "").toString().trim();
+                                    if (storedPwd !== pass.toString().trim()) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
+                                    val.success = true;
+
+                                    // 動態判斷：如果是 admin 登入，且密碼驗證通過，則給予上帝視角權限
+                                    if (loginName.toLowerCase() === "admin" || (val.account && val.account.toLowerCase() === "admin")) {
+                                        val.isAdmin = true;
+                                        val.token = "local-bypass";
+                                    }
+
+                                    if(onSuccess) onSuccess(val);
+                                }, err => { if(onErr) onErr(err); });
+                                return;
+                            }
+
+                            if(onSuccess) onSuccess({success: false, msg: "帳號或密碼錯誤"});
+                        } catch(e) { if(onErr) onErr(e); }
                     },
-                    getStudentDataByAdmin: async function(cls, name, adminToken) {
+                    getStudentDataByAdmin: async function(cls, studentIdOrName, adminToken) {
                         try {
-                            const safeName = name.replace(/[.#$[\]]/g, ',');
-                            const ref = db.ref('/high/students/' + safeName);
-                            listenToValue(ref, snap => {
-                                const val = snap.val();
-                                if (!val) { if(onErr) onErr({success: false, msg: "找不到該學生"}); return; }
-                                val.success = true;
-                                if(onSuccess) onSuccess(val);
+                            const directKey = toFirebaseKey(studentIdOrName);
+                            let ref = db.ref('/high/students/' + directKey);
+                            let snap = await ref.once('value');
+                            let val = snap.val();
+
+                            if (!val) {
+                                const indexSnap = await db.ref('/high/loginIndex/' + toFirebaseKey(studentIdOrName)).once('value');
+                                const indexVal = indexSnap.val();
+                                if (indexVal) {
+                                    const matchId = Object.keys(indexVal).find(id => {
+                                        const item = indexVal[id];
+                                        const itemGrade = item && typeof item === "object" ? item.grade : item;
+                                        return !cls || !itemGrade || itemGrade === cls;
+                                    });
+                                    if (matchId) {
+                                        ref = db.ref('/high/students/' + toFirebaseKey(matchId));
+                                        snap = await ref.once('value');
+                                        val = snap.val();
+                                    }
+                                }
+                            }
+
+                            if (!val) { if(onErr) onErr({success: false, msg: "找不到該學生"}); return; }
+                            const resolvedId = getStudentNodeId(val, studentIdOrName);
+                            listenToValue(ref, snap2 => {
+                                const liveVal = snap2.val();
+                                if (!liveVal) { if(onErr) onErr({success: false, msg: "找不到該學生"}); return; }
+                                liveVal.success = true;
+                                if(onSuccess) onSuccess(withStudentId(liveVal, resolvedId));
                             }, err => { if(onErr) onErr(err); });
                         } catch(e) { if(onErr) onErr(e); }
                     },
@@ -1471,14 +1562,18 @@
                         const snap = await db.ref('/high/meta/students/' + grade + '/' + safeCode).once('value');
                         const students = snap.val();
                         if (students && students.length > 0) {
-                            if(onSuccess) onSuccess(students.sort());
+                            const normalized = students
+                                .map(normalizeStudentOption)
+                                .filter(s => s.name)
+                                .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+                            if(onSuccess) onSuccess(normalized);
                             return;
                         }
                         if(onSuccess) onSuccess([]);
                     } catch(e) { if(onErr) onErr(e); }
                 },
-                changeUserPassword: function(name, oldP, newP) {
-                    doPostAction("changeUserPassword", {name: name, oldPass: oldP, newPass: newP}, onSuccess, onErr);
+                changeUserPassword: function(name, oldP, newP, studentId) {
+                    doPostAction("changeUserPassword", {name: name, studentId: studentId || "", oldPass: oldP, newPass: newP}, onSuccess, onErr);
                 },
                 addCalendarEvent: function(f) {
                     doPostAction("addCalendarEvent", f, onSuccess, onErr);
@@ -1597,7 +1692,7 @@
                 document.getElementById('full-loader').style.display = 'none';
                 if (res.success) { alert("✅ 修改成功！"); closePwdModal(); gPass = newP; }
                 else { alert("❌ 修改失敗: " + res.msg); }
-            }).changeUserPassword(gData.student.name, oldP, newP);
+            }).changeUserPassword(gData.student.name, oldP, newP, getStudentNodeId(gData));
         }
 
         // Scroll
@@ -1704,7 +1799,7 @@
         function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendarGrid(gData.schedule); }
         function showAdminDashboard() { document.getElementById('admin-screen').style.display = 'block'; google.script.run.withSuccessHandler(function (c) { var s = document.getElementById('adminClassSelect'); s.innerHTML = '<option value="" disabled selected>請選擇年級</option>'; var eg = document.getElementById('evtGrade'); eg.innerHTML = '<option value="全體">全體 (全校公告)</option>'; c.forEach(x => { s.innerHTML += `<option value="${x}">${x}</option>`; eg.innerHTML += `<option value="${x}">${x}</option>`; }); }).getAllClassNames(); }
         function loadAdminSubjects() { var g = document.getElementById('adminClassSelect').value; var s = document.getElementById('adminSubjectSelect'); var st = document.getElementById('adminStudentSelect'); s.innerHTML = '<option>載入中...</option>'; s.disabled = true; st.innerHTML = '<option value="" disabled selected>請先選擇科目</option>'; st.disabled = true; google.script.run.withSuccessHandler(function (c) { s.innerHTML = '<option value="" disabled selected>請選擇科目</option><option value="ALL">📋 全部學生</option>'; c.forEach(x => { s.innerHTML += `<option value="${x.code}">${x.name}</option>` }); s.disabled = false; }).getCourseCodesByGrade(g); }
-        function loadStudentList() { var c = document.getElementById('adminClassSelect').value; var o = document.getElementById('adminSubjectSelect').value; var s = document.getElementById('adminStudentSelect'); s.innerHTML = '<option>載入中...</option>'; s.disabled = true; google.script.run.withSuccessHandler(function (n) { s.innerHTML = '<option value="" disabled selected>請選擇學生</option>'; if (n.length == 0) s.innerHTML = '<option value="" disabled>無學生</option>'; n.forEach(x => { s.innerHTML += `<option value="${x}">${x}</option>` }); s.disabled = false; }).getStudentsByGradeAndCourse(c, o); }
+        function loadStudentList() { var c = document.getElementById('adminClassSelect').value; var o = document.getElementById('adminSubjectSelect').value; var s = document.getElementById('adminStudentSelect'); s.innerHTML = '<option>載入中...</option>'; s.disabled = true; google.script.run.withSuccessHandler(function (n) { s.innerHTML = '<option value="" disabled selected>請選擇學生</option>'; if (n.length == 0) s.innerHTML = '<option value="" disabled>無學生</option>'; n.map(normalizeStudentOption).forEach(x => { var value = x.id || x.name; var label = x.name + (x.id ? ` (${x.id})` : ""); s.innerHTML += `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>` }); s.disabled = false; }).getStudentsByGradeAndCourse(c, o); }
         function loadCourseCodes() { var g = document.getElementById('evtGrade').value; var s = document.getElementById('evtCode'); if (g == '全體') { s.innerHTML = '<option value="全體" selected>全體 (全校事件)</option>'; return; } s.innerHTML = '<option>載入中...</option>'; s.disabled = true; google.script.run.withSuccessHandler(function (c) { s.innerHTML = '<option value="" disabled selected>請選擇課程</option><option value="全體">全體 (該年級公告)</option>'; c.forEach(x => { s.innerHTML += `<option value="${x.code}">${x.name} (${x.code})</option>` }); s.disabled = false; }).getCourseCodesByGrade(g); }
 
         function doAddEvent() {
@@ -1732,7 +1827,7 @@
 
         function startGodMode() { var c = document.getElementById('adminClassSelect').value; var n = document.getElementById('adminStudentSelect').value; if (!c || !n) { alert("請選擇"); return; } document.getElementById('full-loader').style.display = 'flex'; clearRealtimeListeners(); isAdminMode = true; google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; if (r.success) { document.getElementById('admin-screen').style.display = 'none'; document.getElementById('appContainer').classList.add('admin-mode-border'); document.getElementById('god-mode-exit-btn').style.display = 'block'; enterStudentView(r); } else { alert(r.msg); } }).getStudentDataByAdmin(c, n, adminToken); }
         function exitGodMode() { clearRealtimeListeners(); isAdminMode = false; gData = null; document.getElementById('main-screen').style.display = 'none'; document.getElementById('god-mode-exit-btn').style.display = 'none'; document.getElementById('appContainer').classList.remove('admin-mode-border'); document.getElementById('admin-screen').style.display = 'block'; }
-        function refreshData() { if (!gData) return; document.getElementById('full-loader').style.display = 'flex'; clearRealtimeListeners(); if (isAdminMode) { google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; enterStudentView(r); }).getStudentDataByAdmin(gData.student.grade, gData.student.name, adminToken); } else { google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; enterStudentView(r); }).getStudentData(gData.student.name, gPass); } }
+        function refreshData() { if (!gData) return; document.getElementById('full-loader').style.display = 'flex'; clearRealtimeListeners(); if (isAdminMode) { google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; enterStudentView(r); }).getStudentDataByAdmin(gData.student.grade, getStudentNodeId(gData) || gData.student.name, adminToken); } else { google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; enterStudentView(r); }).getStudentData(gData.student.name, gPass); } }
         function onFail(e) {
             document.getElementById('full-loader').style.display = 'none';
             var msg = "";
@@ -1826,11 +1921,13 @@
             if (!v) return;
 
             var c = document.getElementById('sb-' + i);
-            var safeName = toStudentKey(gData.student.name);
-            var queueKey = buildScoreQueueKey(gData.student.grade, gData.student.name, n);
+            var studentId = getStudentNodeId(gData) || toStudentKey(gData.student.name);
+            var studentKey = toFirebaseKey(studentId);
+            var queueKey = buildScoreQueueKey(gData.student.grade, studentId, n);
             var now = firebase.database.ServerValue.TIMESTAMP;
             var queueItem = {
                 grade: gData.student.grade,
+                studentId: studentId,
                 name: gData.student.name,
                 exam: n,
                 score: v,
@@ -1853,10 +1950,10 @@
 
             var updates = {};
             updates['/high/scoreQueue/' + queueKey] = queueItem;
-            updates['/high/students/' + safeName + '/grades/' + i + '/score'] = v;
-            updates['/high/students/' + safeName + '/grades/' + i + '/isPending'] = true;
-            updates['/high/students/' + safeName + '/grades/' + i + '/syncStatus'] = "queued";
-            updates['/high/students/' + safeName + '/grades/' + i + '/queueKey'] = queueKey;
+            updates['/high/students/' + studentKey + '/grades/' + i + '/score'] = v;
+            updates['/high/students/' + studentKey + '/grades/' + i + '/isPending'] = true;
+            updates['/high/students/' + studentKey + '/grades/' + i + '/syncStatus'] = "queued";
+            updates['/high/students/' + studentKey + '/grades/' + i + '/queueKey'] = queueKey;
 
             try {
                 await db.ref().update(updates);
