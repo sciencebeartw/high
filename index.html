@@ -1063,6 +1063,7 @@
             <div class="sub-title">查詢課表 ‧ 成績追蹤</div>
             <div class="input-group"><input type="text" id="loginName" placeholder="學生姓名"></div>
             <div class="input-group"><input type="password" id="loginPass" placeholder="登入密碼 (預設家長手機)"
+                    inputmode="numeric" autocomplete="one-time-code"
                     onkeydown="if(event.key==='Enter') doLogin()"></div>
             <button class="login-btn" onclick="doLogin()">登入查詢</button>
             <div id="loginMsg" style="color:#d32f2f; margin-top:15px; font-weight:bold; min-height:20px;"></div>
@@ -1319,7 +1320,7 @@
         }
 
         function normalizeLoginPassword(value) {
-            return String(value || "").replace(/-/g, "").trim();
+            return String(value || "").replace(/[\s\u00A0\u3000\-‐‑‒–—―]/g, "").trim();
         }
 
         function getStudentNodeId(data, fallbackId) {
