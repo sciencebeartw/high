@@ -1659,12 +1659,25 @@
             return [];
         }
 
+        function normalizeAnnouncementsForDisplay(value) {
+            var seen = new Set();
+            return normalizeFirebaseList(value).filter(function(announcement) {
+                if (!announcement) return false;
+                var key = [announcement.title, announcement.content]
+                    .map(function(item) { return String(item || "").trim(); })
+                    .join("\u0001");
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+
         function enterStudentView(res) {
             // RTDB 不會保留空陣列欄位；統一轉成陣列，避免老師等空資料帳號中斷後續畫面與公告彈窗。
             res.schedule = normalizeFirebaseList(res.schedule);
             res.courseList = normalizeFirebaseList(res.courseList);
             res.grades = normalizeFirebaseList(res.grades);
-            res.announcements = normalizeFirebaseList(res.announcements);
+            res.announcements = normalizeAnnouncementsForDisplay(res.announcements);
             if (res.student) res.student.courses = normalizeFirebaseList(res.student.courses);
 
             gData = res;
@@ -1790,7 +1803,7 @@
 
         function showAnnouncements(list) {
             var html = "";
-            list.forEach(a => {
+            normalizeAnnouncementsForDisplay(list).forEach(a => {
                 var contentHtml = linkify(a.content);
                 html += `<div class="anno-item"><div class="anno-title">${a.title}</div><div class="anno-text">${contentHtml}</div></div>`;
             });
