@@ -1653,7 +1653,20 @@
             } else { enterStudentView(res); }
         }
 
+        function normalizeFirebaseList(value) {
+            if (Array.isArray(value)) return value;
+            if (value && typeof value === "object") return Object.values(value);
+            return [];
+        }
+
         function enterStudentView(res) {
+            // RTDB 不會保留空陣列欄位；統一轉成陣列，避免老師等空資料帳號中斷後續畫面與公告彈窗。
+            res.schedule = normalizeFirebaseList(res.schedule);
+            res.courseList = normalizeFirebaseList(res.courseList);
+            res.grades = normalizeFirebaseList(res.grades);
+            res.announcements = normalizeFirebaseList(res.announcements);
+            if (res.student) res.student.courses = normalizeFirebaseList(res.student.courses);
+
             gData = res;
             document.getElementById('main-screen').style.display = 'flex';
             document.getElementById('headName').innerText = res.student.name;
