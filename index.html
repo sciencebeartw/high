@@ -2,8 +2,9 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
     <base target="_top">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>山熊升大</title>
     <meta name="theme-color" content="#1565C0">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -45,6 +46,7 @@
         .app-container {
             width: 100%;
             max-width: 480px;
+            height: 100vh;
             height: 100dvh;
             background: #f2f3f7;
             margin: 0 auto;
@@ -200,6 +202,39 @@
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(21, 101, 192, 0.3);
+            min-height: 48px;
+        }
+
+        .login-divider {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 18px 0;
+            color: #90a4ae;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .login-divider::before,
+        .login-divider::after {
+            content: "";
+            height: 1px;
+            flex: 1;
+            background: #e0e0e0;
+        }
+
+        .admin-google-btn {
+            width: 100%;
+            min-height: 48px;
+            padding: 12px 15px;
+            border: 2px solid #dbe3ec;
+            border-radius: 12px;
+            background: #fff;
+            color: #455a64;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
         }
 
         /* Admin Dashboard */
@@ -339,6 +374,7 @@
             background: white;
             cursor: pointer;
             white-space: nowrap;
+            min-height: 44px;
         }
 
         /* Tabs */
@@ -591,8 +627,8 @@
             border: none;
             background: var(--primary-light);
             color: var(--primary);
-            width: 36px;
-            height: 36px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             font-weight: bold;
             cursor: pointer;
@@ -785,6 +821,7 @@
             align-items: center;
             padding: 15px 0;
             border-bottom: 1px dashed #eee;
+            gap: 10px;
         }
 
         .score-row:last-child {
@@ -873,6 +910,7 @@
 
         .score-input {
             width: 70px;
+            min-height: 44px;
             padding: 8px;
             border: 2px solid var(--danger);
             border-radius: 8px;
@@ -891,6 +929,53 @@
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
+            min-height: 44px;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+
+        @media (max-width: 420px) {
+            .header-bar {
+                height: auto;
+                min-height: var(--header-height);
+                align-items: flex-start;
+            }
+
+            .header-logo-small {
+                height: 54px;
+            }
+
+            .student-info {
+                font-size: 1.65rem;
+                overflow-wrap: anywhere;
+            }
+
+            .header-right {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .header-btn {
+                padding: 4px 8px;
+            }
+
+            .score-row {
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .exam-name-container {
+                min-width: 160px;
+                margin-right: 0;
+            }
+
+            .score-input-group {
+                width: 100%;
+                justify-content: flex-end;
+            }
         }
 
         /* Password Modal */
@@ -1061,11 +1146,14 @@
             <img src="https://www.sciencebear.com.tw/high/logo.png" class="logo-img">
             <h2>高中部學生專區</h2>
             <div class="sub-title">查詢課表 ‧ 成績追蹤</div>
-            <div class="input-group"><input type="text" id="loginName" placeholder="學生姓名"></div>
+            <div class="input-group"><input type="text" id="loginName" placeholder="學生姓名／老師登入帳號"
+                    autocomplete="username" aria-label="學生姓名或老師登入帳號"></div>
             <div class="input-group"><input type="password" id="loginPass" placeholder="登入密碼"
                     autocomplete="current-password"
                     onkeydown="if(event.key==='Enter') doLogin()"></div>
             <button class="login-btn" onclick="doLogin()">登入查詢</button>
+            <div class="login-divider">管理者</div>
+            <button class="admin-google-btn" onclick="doAdminGoogleLogin()">使用 Google 管理員帳號登入</button>
             <div id="loginMsg" style="color:#d32f2f; margin-top:15px; font-weight:bold; min-height:20px;"></div>
         </div>
 
@@ -1135,7 +1223,7 @@
                 </div>
                 <div class="header-right">
                     <button class="header-btn" onclick="refreshData()">刷新</button>
-                    <button class="header-btn" onclick="openPwdModal()">修改密碼</button>
+                    <button class="header-btn" id="changePwdBtn" onclick="openPwdModal()">修改密碼</button>
                     <button class="header-btn" onclick="doLogout()">登出</button>
                 </div>
             </div>
@@ -1295,50 +1383,30 @@
     </script>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-functions.js"></script>
     <script src="firebase-config.js"></script>
 
     <script>
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        const highFirebaseAppName = 'high-app';
+        const highFirebaseApp = firebase.initializeApp(firebaseConfig, highFirebaseAppName);
+        const db = highFirebaseApp.database();
+        const highAuth = highFirebaseApp.auth();
+        const highFunctions = highFirebaseApp.functions();
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyE_Mcd1hBLAgt1TXr-oezzXqts_ruoovBqgGFWPHTsEhqmjGp1FT4qhqVsVzJ8xZgNwg/exec";
 
         function toFirebaseKey(value) {
-            return String(value || "").replace(/[.#$[\]\/]/g, "-");
-        }
-
-        function toStudentKey(value) {
-            return String(value || "").replace(/[.#$[\]\/]/g, ",");
-        }
-
-        function buildScoreQueueKey(grade, studentId, exam) {
-            return toFirebaseKey([grade, studentId, exam].join("|"));
+            return String(value == null ? "" : value).replace(/[.#$[\]\/]/g, "-");
         }
 
         function hasScoreValue(value) {
             return value !== null && value !== undefined && value !== "";
         }
 
-        function normalizeLoginPassword(value) {
-            return String(value || "").replace(/[\s\u00A0\u3000\-‐‑‒–—―]/g, "").trim();
-        }
-
         function getStudentNodeId(data, fallbackId) {
             const student = (data && data.student) || {};
             return String(student.id || data.studentId || fallbackId || "").trim();
-        }
-
-        function studentMatchesPassword(data, pass) {
-            const student = (data && data.student) || {};
-            const inputPwd = normalizeLoginPassword(pass);
-            const storedPwd = normalizeLoginPassword(data && data.sysPwd);
-            const parentPwd = normalizeLoginPassword(student.parent_phone);
-            const studentPwd = normalizeLoginPassword(student.student_phone);
-            const fatherPwd = normalizeLoginPassword(student.father_phone);
-            if (storedPwd) return inputPwd === storedPwd;
-            return (parentPwd && inputPwd === parentPwd) ||
-                (studentPwd && inputPwd === studentPwd) ||
-                (fatherPwd && inputPwd === fatherPwd);
         }
 
         function withStudentId(data, fallbackId) {
@@ -1366,7 +1434,7 @@
         }
 
         function escapeHtml(value) {
-            return String(value || "")
+            return String(value == null ? "" : value)
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
@@ -1375,10 +1443,13 @@
         }
 
         let activeRealtimeRefs = [];
+        let currentIdentityRef = null;
+        let currentHighSession = null;
 
         function clearRealtimeListeners() {
             activeRealtimeRefs.forEach(ref => ref.off('value'));
             activeRealtimeRefs = [];
+            currentIdentityRef = null;
         }
 
         function listenToValue(ref, handler, onErr) {
@@ -1386,168 +1457,180 @@
             ref.off('value');
             ref.on('value', handler, onErr);
             activeRealtimeRefs.push(ref);
+            currentIdentityRef = ref;
         }
 
-        function doPostAction(action, data, onSuccess, onErr, adminPwd, retries = 3) {
-            if(SCRIPT_URL.includes("請在後續部署後換上正確的")) {
-               alert("⚠️ 錯誤：尚未填入 GAS Web App 網址在 index.html 內！");
-               if(onErr) onErr("No Web App URL");
-               return;
+        function callableErrorMessage(error, fallback) {
+            const message = error && (error.message || (error.details && error.details.message));
+            return String(message || fallback || "連線失敗，請稍後再試").replace(/^Firebase:\s*/i, "");
+        }
+
+        function isGoogleAdminUser(user) {
+            return !!(user && user.email && (user.providerData || []).some(function(provider) {
+                return provider && provider.providerId === 'google.com';
+            }));
+        }
+
+        function requireGoogleAdminSession() {
+            if (!currentHighSession || currentHighSession.role !== 'admin' || !isGoogleAdminUser(highAuth.currentUser)) {
+                throw new Error("管理員登入已失效，請重新以 Google 帳號登入");
             }
-            fetch(SCRIPT_URL, {
-               method: "POST",
-               headers: { "Content-Type": "text/plain" },
-               body: JSON.stringify({ action: action, data: data, adminPassword: adminPwd || "" })
-            })
-            .then(res => res.json())
-            .then(res => { if(onSuccess) onSuccess(res); })
-            .catch(err => {
-                console.warn("GAS Webhook 遇到塞車或錯誤，剩下重試次數:", retries, err);
-                if (retries > 0) {
-                    setTimeout(() => {
-                        doPostAction(action, data, onSuccess, onErr, adminPwd, retries - 1);
-                    }, 1000 + Math.random() * 1000); // 隨機延遲 1~2 秒再重試
-                } else {
-                    console.error("重試失敗:", err);
-                    if(onErr) onErr(err);
+        }
+
+        async function establishGoogleAdminSession() {
+            requireGoogleAdminUser();
+            const result = await highFunctions.httpsCallable('createHighAdminSession')({});
+            const session = result && result.data;
+            if (!session || session.success !== true || session.role !== 'admin') {
+                throw new Error("管理員權限驗證失敗");
+            }
+            currentHighSession = {
+                role: 'admin',
+                expiresAt: Number(session.expiresAt || 0),
+                email: highAuth.currentUser.email || ''
+            };
+            return currentHighSession;
+        }
+
+        function requireGoogleAdminUser() {
+            if (!isGoogleAdminUser(highAuth.currentUser)) {
+                throw new Error("請先使用管理員 Google 帳號登入");
+            }
+        }
+
+        async function doPostAction(action, data, onSuccess, onErr, options) {
+            const maxRetries = action === "process_score_queue"
+                ? Math.max(0, Math.min(1, Number(options && options.maxRetries) || 0))
+                : 0;
+            let attempt = 0;
+            while (true) {
+                try {
+                    if (SCRIPT_URL.includes("請在後續部署後換上正確的")) {
+                        throw new Error("尚未設定高中 GAS Web App 網址");
+                    }
+                    const user = highAuth.currentUser;
+                    if (!user) throw new Error("登入已失效，請重新登入");
+                    const firebaseIdToken = await user.getIdToken();
+                    const response = await fetch(SCRIPT_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "text/plain" },
+                        body: JSON.stringify({
+                            action: action,
+                            data: data || {},
+                            firebaseIdToken: firebaseIdToken
+                        })
+                    });
+                    const responseText = await response.text();
+                    let payload;
+                    try {
+                        payload = JSON.parse(responseText);
+                    } catch (parseError) {
+                        throw new Error("後端回應格式錯誤");
+                    }
+                    if (!response.ok) throw new Error((payload && payload.msg) || ("HTTP " + response.status));
+                    if (onSuccess) onSuccess(payload);
+                    return payload;
+                } catch (error) {
+                    if (attempt < maxRetries) {
+                        attempt += 1;
+                        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+                        continue;
+                    }
+                    console.error(action + " 失敗:", error);
+                    if (onErr) onErr(error);
+                    return null;
                 }
-            });
+            }
         }
 
         function createApiMethods(onSuccess, onErr) {
             return {
-                    getStudentData: async function(name, pass) {
-                        try {
-                            const loginName = String(name || "").trim();
-                            const loginKey = toFirebaseKey(loginName);
-                            const indexSnap = await db.ref('/high/loginIndex/' + loginKey).once('value');
-                            const indexVal = indexSnap.val();
-
-                            if (indexVal) {
-                                const ids = Object.keys(indexVal);
-                                const matches = [];
-                                for (const id of ids) {
-                                    const ref = db.ref('/high/students/' + toFirebaseKey(id));
-                                    const snap = await ref.once('value');
-                                    const val = snap.val();
-                                    if (!val || !val.student || val.student.name !== loginName) continue;
-                                    if (studentMatchesPassword(val, pass)) matches.push({ id: id, ref: ref });
-                                }
-                                if (matches.length === 1) {
-                                    const matched = matches[0];
-                                    listenToValue(matched.ref, snap2 => {
-                                        const val = snap2.val();
-                                        if (!val) { if(onSuccess) onSuccess({success: false, msg: "找不到該學生"}); return; }
-                                        if (!studentMatchesPassword(val, pass)) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
-                                        val.success = true;
-                                        if(onSuccess) onSuccess(withStudentId(val, matched.id));
-                                    }, err => { if(onErr) onErr(err); });
-                                    return;
-                                }
-                                if (matches.length > 1) {
-                                    if(onSuccess) onSuccess({success: false, msg: "同名且密碼相同，請改用學生手機或聯絡山熊確認"});
-                                    return;
-                                }
-                                if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"});
+                getStudentData: async function(name, pass) {
+                    try {
+                        clearRealtimeListeners();
+                        currentHighSession = null;
+                        await highAuth.signOut();
+                        await highAuth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+                        const loginResult = await highFunctions.httpsCallable('createHighSession')({
+                            loginName: String(name || "").trim(),
+                            password: String(pass || "")
+                        });
+                        const session = loginResult && loginResult.data;
+                        if (!session || session.success !== true || !session.firebaseCustomToken ||
+                            (session.role !== 'student' && session.role !== 'teacher')) {
+                            throw new Error("登入服務沒有回傳完整身分");
+                        }
+                        await highAuth.signInWithCustomToken(session.firebaseCustomToken);
+                        currentHighSession = session;
+                        const identityKey = session.role === 'student' ? session.studentId : session.teacherKey;
+                        if (!identityKey) throw new Error("登入服務缺少身分識別碼");
+                        const identityPath = session.role === 'student' ? '/high/students/' : '/high/teachers/';
+                        const ref = db.ref(identityPath + toFirebaseKey(identityKey));
+                        listenToValue(ref, function(snapshot) {
+                            const value = snapshot.val();
+                            if (!value || !value.student) {
+                                const missingIdentityError = new Error("找不到完整的登入資料，請重新登入");
+                                doLogout().then(function() {
+                                    if (onErr) onErr(missingIdentityError);
+                                });
                                 return;
                             }
-
-                            const legacyStudentKey = toStudentKey(loginName);
-                            const legacyRef = db.ref('/high/students/' + legacyStudentKey);
-                            const legacySnap = await legacyRef.once('value');
-                            if (legacySnap.exists()) {
-                                const initialVal = legacySnap.val();
-                                if (!studentMatchesPassword(initialVal, pass)) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
-                                listenToValue(legacyRef, snap2 => {
-                                    const val = snap2.val();
-                                    if (!val) { if(onSuccess) onSuccess({success: false, msg: "找不到該學生"}); return; }
-                                    if (!studentMatchesPassword(val, pass)) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
-                                    val.success = true;
-                                    if(onSuccess) onSuccess(withStudentId(val, legacyStudentKey));
-                                }, err => { if(onErr) onErr(err); });
+                            value.success = true;
+                            value.authRole = session.role;
+                            if (onSuccess) onSuccess(withStudentId(value, session.studentId || identityKey));
+                        }, function(error) {
+                            if (onErr) onErr(error);
+                        });
+                    } catch (error) {
+                        currentHighSession = null;
+                        await highAuth.signOut().catch(function() {});
+                        if (onErr) onErr(error);
+                    }
+                },
+                getStudentDataByAdmin: async function(cls, studentId) {
+                    try {
+                        requireGoogleAdminSession();
+                        const directKey = toFirebaseKey(studentId);
+                        if (!directKey) throw new Error("缺少學生識別碼");
+                        const ref = db.ref('/high/students/' + directKey);
+                        const snap = await ref.once('value');
+                        const value = snap.val();
+                        if (!value || !value.student || (cls && value.student.grade !== cls)) {
+                            throw new Error("找不到該學生，請重新選擇");
+                        }
+                        listenToValue(ref, function(liveSnap) {
+                            const liveValue = liveSnap.val();
+                            if (!liveValue || !liveValue.student) {
+                                clearRealtimeListeners();
+                                if (typeof exitGodMode === 'function' && isAdminMode) exitGodMode();
+                                if (onErr) onErr(new Error("找不到該學生"));
                                 return;
                             }
-
-                            const teacherKey = toStudentKey(loginName);
-                            const teacherSnap = await db.ref('/high/teachers/' + teacherKey).once('value');
-                            if (teacherSnap.exists()) {
-                                const ref = db.ref('/high/teachers/' + teacherKey);
-                                const initialTeacher = teacherSnap.val();
-                                const initialTeacherPwd = (initialTeacher.password || "").toString().trim();
-                                if (initialTeacherPwd !== pass.toString().trim()) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
-
-                                listenToValue(ref, snap4 => {
-                                    const val = snap4.val();
-                                    if (!val) { if(onSuccess) onSuccess({success: false, msg: "找不到該老師"}); return; }
-                                    const storedPwd = (val.password || "").toString().trim();
-                                    if (storedPwd !== pass.toString().trim()) { if(onSuccess) onSuccess({success: false, msg: "密碼錯誤"}); return; }
-                                    val.success = true;
-
-                                    // 動態判斷：如果是 admin 登入，且密碼驗證通過，則給予上帝視角權限
-                                    if (loginName.toLowerCase() === "admin" || (val.account && val.account.toLowerCase() === "admin")) {
-                                        val.isAdmin = true;
-                                        val.token = "local-bypass";
-                                    }
-
-                                    if(onSuccess) onSuccess(val);
-                                }, err => { if(onErr) onErr(err); });
-                                return;
-                            }
-
-                            if(onSuccess) onSuccess({success: false, msg: "帳號或密碼錯誤"});
-                        } catch(e) { if(onErr) onErr(e); }
-                    },
-                    getStudentDataByAdmin: async function(cls, studentIdOrName, adminToken) {
-                        try {
-                            const directKey = toFirebaseKey(studentIdOrName);
-                            let ref = db.ref('/high/students/' + directKey);
-                            let snap = await ref.once('value');
-                            let val = snap.val();
-
-                            if (!val) {
-                                const indexSnap = await db.ref('/high/loginIndex/' + toFirebaseKey(studentIdOrName)).once('value');
-                                const indexVal = indexSnap.val();
-                                if (indexVal) {
-                                    const matchId = Object.keys(indexVal).find(id => {
-                                        const item = indexVal[id];
-                                        const itemGrade = item && typeof item === "object" ? item.grade : item;
-                                        return !cls || !itemGrade || itemGrade === cls;
-                                    });
-                                    if (matchId) {
-                                        ref = db.ref('/high/students/' + toFirebaseKey(matchId));
-                                        snap = await ref.once('value');
-                                        val = snap.val();
-                                    }
-                                }
-                            }
-
-                            if (!val) { if(onErr) onErr({success: false, msg: "找不到該學生"}); return; }
-                            const resolvedId = getStudentNodeId(val, studentIdOrName);
-                            listenToValue(ref, snap2 => {
-                                const liveVal = snap2.val();
-                                if (!liveVal) { if(onErr) onErr({success: false, msg: "找不到該學生"}); return; }
-                                liveVal.success = true;
-                                if(onSuccess) onSuccess(withStudentId(liveVal, resolvedId));
-                            }, err => { if(onErr) onErr(err); });
-                        } catch(e) { if(onErr) onErr(e); }
-                    },
+                            liveValue.success = true;
+                            liveValue.authRole = 'admin_preview';
+                            if (onSuccess) onSuccess(withStudentId(liveValue, directKey));
+                        }, function(error) {
+                            if (onErr) onErr(error);
+                        });
+                    } catch (error) {
+                        if (onErr) onErr(error);
+                    }
+                },
                 getAllClassNames: async function() {
                     try {
+                        requireGoogleAdminSession();
                         const snap = await db.ref('/high/meta/grades').once('value');
                         const grades = snap.val();
                         if (grades && grades.length > 0) {
                             if(onSuccess) onSuccess(grades);
                             return;
                         }
-                        // Fallback logic
-                        let d = new Date();
-                        let y = d.getFullYear() - 1911;
-                        if (d.getMonth() < 7) y = y - 1;
-                        if(onSuccess) onSuccess([y + '高一', (y-1) + '高二', (y-2) + '高三']);
+                        if(onSuccess) onSuccess([]);
                     } catch(e) { if(onErr) onErr(e); }
                 },
                 getCourseCodesByGrade: async function(grade) {
                     try {
+                        requireGoogleAdminSession();
                         const snap = await db.ref('/high/meta/courses/' + grade).once('value');
                         const courses = snap.val();
                         if (courses && courses.length > 0) {
@@ -1559,6 +1642,7 @@
                 },
                 getStudentsByGradeAndCourse: async function(grade, courseCode) {
                     try {
+                        requireGoogleAdminSession();
                         const safeCode = courseCode.replace(/[.#$[\]]/g, '_');
                         const snap = await db.ref('/high/meta/students/' + grade + '/' + safeCode).once('value');
                         const students = snap.val();
@@ -1574,13 +1658,10 @@
                     } catch(e) { if(onErr) onErr(e); }
                 },
                 changeUserPassword: function(name, oldP, newP, studentId) {
-                    doPostAction("changeUserPassword", {name: name, studentId: studentId || "", oldPass: oldP, newPass: newP}, onSuccess, onErr);
+                    doPostAction("changeUserPassword", {name: name, studentId: studentId || "", oldPass: oldP, newPass: newP}, onSuccess, onErr, { maxRetries: 0 });
                 },
                 addCalendarEvent: function(f) {
-                    doPostAction("addCalendarEvent", f, onSuccess, onErr);
-                },
-                submitScore: function(f) {
-                    doPostAction("process_score_queue", f, onSuccess, onErr);
+                    doPostAction("addCalendarEvent", f, onSuccess, onErr, { maxRetries: 0 });
                 }
             };
         }
@@ -1595,8 +1676,7 @@
                 function(err) {
                     console.warn("成績已先排隊，背景同步稍後重試:", err);
                 },
-                "",
-                1
+                { maxRetries: 1 }
             );
         }
 
@@ -1622,41 +1702,148 @@
 
     <script>
         var gData = null;
-        var gPass = "";
-        var adminToken = "";
         var currentCalDate = new Date();
         var isAdminMode = false;
         var isFirstLoad = true;
+        var authFlowInProgress = false;
+        var shownAnnouncementKeys = new Set();
+
+        function showUiBanner(message, isError) {
+            var banner = document.createElement('div');
+            banner.style.cssText = 'position:fixed;top:10px;left:50%;max-width:calc(100% - 30px);transform:translateX(-50%);background:' +
+                (isError ? '#d32f2f' : '#2e7d32') +
+                ';color:white;padding:10px 20px;border-radius:12px;z-index:9999;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.3);text-align:center;';
+            banner.textContent = String(message || '操作完成');
+            document.body.appendChild(banner);
+            setTimeout(function() { banner.remove(); }, 4500);
+        }
+
+        function swalAlert(title, message, icon) {
+            if (typeof Swal !== 'undefined') {
+                return Swal.fire({
+                    title: String(title || ''),
+                    text: String(message || ''),
+                    icon: icon || 'info',
+                    confirmButtonColor: '#1565C0'
+                });
+            }
+            showUiBanner((title ? title + '：' : '') + String(message || ''), icon === 'error');
+            return Promise.resolve();
+        }
+
+        async function swalConfirm(title, message) {
+            if (typeof Swal === 'undefined') {
+                showUiBanner('確認視窗載入失敗，已停止操作，請重新整理後再試', true);
+                return false;
+            }
+            var result = await Swal.fire({
+                title: String(title || '請確認'),
+                text: String(message || ''),
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '確定',
+                cancelButtonText: '取消',
+                confirmButtonColor: '#1565C0'
+            });
+            return result.isConfirmed === true;
+        }
 
         function doLogin() {
             var name = document.getElementById('loginName').value.trim();
             var pass = document.getElementById('loginPass').value.trim();
             if (!name || !pass) { document.getElementById('loginMsg').innerText = "請輸入完整資訊"; return; }
+            if (authFlowInProgress) return;
+            authFlowInProgress = true;
             document.getElementById('full-loader').style.display = 'flex';
+            document.getElementById('loginMsg').innerText = '';
             clearRealtimeListeners();
-            gPass = pass;
             isFirstLoad = true;
-            google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFail).getStudentData(name, pass);
+            shownAnnouncementKeys.clear();
+            google.script.run.withSuccessHandler(function(res) {
+                authFlowInProgress = false;
+                document.getElementById('loginPass').value = '';
+                onSuccess(res);
+            }).withFailureHandler(function(error) {
+                authFlowInProgress = false;
+                document.getElementById('loginPass').value = '';
+                onFail(error);
+            }).getStudentData(name, pass);
+        }
+
+        async function doAdminGoogleLogin() {
+            if (authFlowInProgress) return;
+            authFlowInProgress = true;
+            document.getElementById('full-loader').style.display = 'flex';
+            document.getElementById('loginMsg').innerText = '';
+            try {
+                clearRealtimeListeners();
+                currentHighSession = null;
+                await highAuth.signOut();
+                await highAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+                var provider = new firebase.auth.GoogleAuthProvider();
+                provider.setCustomParameters({ prompt: 'select_account' });
+                await highAuth.signInWithPopup(provider);
+                await establishGoogleAdminSession();
+                shownAnnouncementKeys.clear();
+                document.getElementById('login-screen').style.display = 'none';
+                showAdminDashboard();
+            } catch (error) {
+                currentHighSession = null;
+                await highAuth.signOut().catch(function() {});
+                document.getElementById('loginMsg').innerText = callableErrorMessage(error, 'Google 管理員登入失敗');
+            } finally {
+                authFlowInProgress = false;
+                document.getElementById('full-loader').style.display = 'none';
+            }
         }
 
         function onSuccess(res) {
             document.getElementById('full-loader').style.display = 'none';
-            if (!res.success) { document.getElementById('loginMsg').innerText = res.msg; return; }
+            if (!res || res.success !== true || !res.student) {
+                var invalidMessage = (res && res.msg) || '登入資料不完整，請重新登入';
+                doLogout().then(function() {
+                    document.getElementById('loginMsg').innerText = invalidMessage;
+                });
+                return;
+            }
             document.getElementById('login-screen').style.display = 'none';
-
-            // 防呆：如果已經進入上帝視角，忽略 Admin 的 Firebase 重新連線更新，避免畫面重疊
-            if (isAdminMode && res.isAdmin) return;
-
-            if (res.isAdmin) {
-                adminToken = res.token;
-                showAdminDashboard();
-            } else { enterStudentView(res); }
+            enterStudentView(res);
         }
+
+        highAuth.onAuthStateChanged(async function(user) {
+            if (authFlowInProgress || !isGoogleAdminUser(user)) return;
+            authFlowInProgress = true;
+            document.getElementById('full-loader').style.display = 'flex';
+            try {
+                await establishGoogleAdminSession();
+                document.getElementById('login-screen').style.display = 'none';
+                showAdminDashboard();
+            } catch (error) {
+                currentHighSession = null;
+                await highAuth.signOut().catch(function() {});
+                document.getElementById('loginMsg').innerText = callableErrorMessage(error, '管理員登入已失效');
+            } finally {
+                authFlowInProgress = false;
+                document.getElementById('full-loader').style.display = 'none';
+            }
+        });
 
         function normalizeFirebaseList(value) {
             if (Array.isArray(value)) return value;
             if (value && typeof value === "object") return Object.values(value);
             return [];
+        }
+
+        function normalizeGradeEntries(value) {
+            if (Array.isArray(value)) return value.slice(0, 301);
+            if (!value || typeof value !== "object") return [];
+            var entries = [];
+            Object.keys(value).forEach(function(key) {
+                var index = Number(key);
+                if (!Number.isInteger(index) || index < 0 || index > 300) return;
+                entries[index] = value[key];
+            });
+            return entries;
         }
 
         function normalizeAnnouncementsForDisplay(value) {
@@ -1676,7 +1863,8 @@
             // RTDB 不會保留空陣列欄位；統一轉成陣列，避免老師等空資料帳號中斷後續畫面與公告彈窗。
             res.schedule = normalizeFirebaseList(res.schedule);
             res.courseList = normalizeFirebaseList(res.courseList);
-            res.grades = normalizeFirebaseList(res.grades);
+            // gradeIndex 是成績 callable 的後端核對欄位；RTDB 稀疏數字 key 不可用 Object.values 壓縮。
+            res.grades = normalizeGradeEntries(res.grades);
             res.announcements = normalizeAnnouncementsForDisplay(res.announcements);
             if (res.student) res.student.courses = normalizeFirebaseList(res.student.courses);
 
@@ -1684,6 +1872,7 @@
             document.getElementById('main-screen').style.display = 'flex';
             document.getElementById('headName').innerText = res.student.name;
             document.getElementById('headGrade').innerText = inferGradeDisplay(res.student.courses, res.student.grade);
+            document.getElementById('changePwdBtn').style.display = (!isAdminMode && currentHighSession && currentHighSession.role === 'student') ? '' : 'none';
 
             renderSchedule(res.schedule);
             renderCourses(res.courseList);
@@ -1712,27 +1901,41 @@
         function doChangePwd() {
             var oldP = document.getElementById('oldP').value;
             var newP = document.getElementById('newP').value;
-            if (!oldP || !newP) { alert("請輸入舊密碼與新密碼！"); return; }
-            if (isAdminMode) { alert("管理者模式下不可修改學生密碼！"); return; }
+            if (!oldP || !newP) { swalAlert('資料不完整', '請輸入舊密碼與新密碼！', 'warning'); return; }
+            if (isAdminMode || !currentHighSession || currentHighSession.role !== 'student') {
+                swalAlert('禁止操作', '只有登入中的學生本人可以修改密碼！', 'warning');
+                return;
+            }
             document.getElementById('full-loader').style.display = 'flex';
             google.script.run.withSuccessHandler(function (res) {
                 document.getElementById('full-loader').style.display = 'none';
-                if (res.success) { alert("✅ 修改成功！"); closePwdModal(); gPass = newP; }
-                else { alert("❌ 修改失敗: " + res.msg); }
+                if (res && res.success) {
+                    closePwdModal();
+                    swalAlert('修改成功', '密碼已更新。', 'success');
+                } else {
+                    swalAlert('修改失敗', (res && res.msg) || '請稍後再試', 'error');
+                }
+            }).withFailureHandler(function(error) {
+                document.getElementById('full-loader').style.display = 'none';
+                swalAlert('修改失敗', callableErrorMessage(error), 'error');
             }).changeUserPassword(gData.student.name, oldP, newP, getStudentNodeId(gData));
         }
 
         // Scroll
+        function formatLocalDate(date) {
+            var value = date instanceof Date ? date : new Date(date);
+            return value.getFullYear() + '-' + String(value.getMonth() + 1).padStart(2, '0') + '-' + String(value.getDate()).padStart(2, '0');
+        }
+
         function scrollToTodayList() {
-            var todayStr = new Date().toISOString().split('T')[0];
-            var cards = document.querySelectorAll('#tab-0 .card');
+            var todayStr = formatLocalDate(new Date());
+            var cards = document.querySelectorAll('#tab-0 .card[data-date]');
             var container = document.getElementById('schedule-scroll-area');
 
             if (!container) return;
 
             for (var i = 0; i < cards.length; i++) {
-                var dateText = cards[i].querySelector('.date-text').innerText;
-                var datePart = dateText.split(' ')[1];
+                var datePart = cards[i].dataset.date || '';
                 if (datePart >= todayStr) {
                     var offset = cards[i].offsetTop;
                     container.scrollTo({ top: offset - 10, behavior: 'smooth' });
@@ -1756,42 +1959,64 @@
             var d = document.getElementById('course-list-view');
             if (courses.length === 0) { d.innerHTML = "<div style='text-align:center; color:#aaa; margin-top:20px;'>無報名課程</div>"; return; }
             var html = "";
-            courses.forEach(c => {
-                html += `<div class="course-item" onclick="filterCourse('${c.code}', '${c.name}')"><div class="title" style="margin:0; font-size:1.1rem;">${c.name}</div><div class="course-arrow">➜</div></div>`;
+            courses.forEach(function(c, index) {
+                html += `<div class="course-item" role="button" tabindex="0" data-course-index="${index}"><div class="title" style="margin:0; font-size:1.1rem;">${escapeHtml(c && c.name)}</div><div class="course-arrow">➜</div></div>`;
             });
             d.innerHTML = html;
+            d.querySelectorAll('[data-course-index]').forEach(function(item) {
+                function openSelectedCourse() {
+                    var index = Number(item.dataset.courseIndex);
+                    var course = courses[index];
+                    if (course) filterCourse(String(course.code || ''), String(course.name || ''));
+                }
+                item.addEventListener('click', openSelectedCourse);
+                item.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openSelectedCourse();
+                    }
+                });
+            });
         }
         function filterCourse(code, name) {
             document.getElementById('course-list-view').style.display = 'none';
             document.getElementById('course-detail-view').style.display = 'block';
             var detailContainer = document.getElementById('course-schedule-list');
-            var filteredEvents = gData.schedule.filter(e => e.code === code);
+            var filteredEvents = normalizeFirebaseList(gData && gData.schedule).filter(function(event) {
+                return event && event.code === code;
+            });
             if (filteredEvents.length === 0) { detailContainer.innerHTML = "<div style='text-align:center; padding:30px; color:#b0bec5;'>此課程近期無安排</div>"; }
             else {
                 var html = "";
                 filteredEvents.forEach(e => {
+                    var eventType = String((e && e.type) || '');
+                    var eventTitle = String((e && e.title) || '');
+                    var eventNote = String((e && e.note) || '');
                     // 🔴 修正：根據 type 決定 cardClass
                     var cardClass = "card";
-                    if (e.type === "輔導") cardClass += " tutoring";
-                    else if (e.type.includes("放假") || e.type === "停課" || e.status === "suspended") cardClass += " holiday";
-                    else if (e.type === "調課") cardClass += " modified";
-                    else if (e.type === "加課") cardClass += " added";
-                    else if (e.type === "公告") cardClass += " announcement";
+                    if (eventType === "輔導") cardClass += " tutoring";
+                    else if (eventType.includes("放假") || eventType === "停課" || e.status === "suspended") cardClass += " holiday";
+                    else if (eventType === "調課") cardClass += " modified";
+                    else if (eventType === "加課") cardClass += " added";
+                    else if (eventType === "公告") cardClass += " announcement";
 
                     // 🔴 修正：根據 type 決定 tagHtml
                     var tagHtml = `<span class="tag">正課</span>`;
-                    if (e.type === "模考") tagHtml = `<span class="tag exam">模考</span>`;
-                    else if (e.type === "輔導") tagHtml = `<span class="tag tutoring">輔導</span>`;
-                    else if (e.type.includes("放假") || e.type === "停課" || e.status === "suspended") tagHtml = `<span class="tag holiday">${e.type}</span>`;
-                    else if (e.type === "調課") tagHtml = `<span class="tag modified">調課</span>`;
-                    else if (e.type === "加課") tagHtml = `<span class="tag added">加課</span>`;
-                    else if (e.type === "公告") tagHtml = `<span class="tag announcement">公告</span>`;
+                    if (eventType === "模考") tagHtml = `<span class="tag exam">模考</span>`;
+                    else if (eventType === "輔導") tagHtml = `<span class="tag tutoring">輔導</span>`;
+                    else if (eventType.includes("放假") || eventType === "停課" || e.status === "suspended") tagHtml = `<span class="tag holiday">${escapeHtml(eventType)}</span>`;
+                    else if (eventType === "調課") tagHtml = `<span class="tag modified">調課</span>`;
+                    else if (eventType === "加課") tagHtml = `<span class="tag added">加課</span>`;
+                    else if (eventType === "公告") tagHtml = `<span class="tag announcement">公告</span>`;
 
                     var titleClass = "title"; if (e.status === "cancelled") titleClass += " status-cancelled";
-                    var noteHtml = ""; if (e.note && e.note.trim() !== "" && e.note.trim() !== e.title.trim()) noteHtml = `<div class="schedule-note">${e.note}</div>`;
-                    html += `<div class="${cardClass}"><div class="date-row"><span class="date-text">📅 ${e.date} (${getDayName(e.date)})</span>${tagHtml}</div><div class="${titleClass}">${e.title}</div>${noteHtml}<div class="time">⏰ ${e.time}</div></div>`;
+                    var noteHtml = "";
+                    if (eventNote.trim() && eventNote.trim() !== eventTitle.trim()) {
+                        noteHtml = `<div class="schedule-note">${escapeHtml(eventNote)}</div>`;
+                    }
+                    html += `<div class="${cardClass}" data-date="${escapeHtml(e && e.date)}"><div class="date-row"><span class="date-text">📅 ${escapeHtml(e && e.date)} (${escapeHtml(getDayName(e && e.date))})</span>${tagHtml}</div><div class="${titleClass}">${escapeHtml(eventTitle)}</div>${noteHtml}<div class="time">⏰ ${escapeHtml(e && e.time)}</div></div>`;
                 });
-                detailContainer.innerHTML = `<div style='padding:10px 15px; font-weight:bold; color:#1565C0;'>📘 ${name} - 專屬課表</div>` + html;
+                detailContainer.innerHTML = `<div style='padding:10px 15px; font-weight:bold; color:#1565C0;'>📘 ${escapeHtml(name)} - 專屬課表</div>` + html;
             }
             document.querySelector('#tab-1 .scroll-container').scrollTo(0, 0);
         }
@@ -1802,20 +2027,56 @@
         }
 
         function showAnnouncements(list) {
-            var html = "";
-            normalizeAnnouncementsForDisplay(list).forEach(a => {
-                var contentHtml = linkify(a.content);
-                html += `<div class="anno-item"><div class="anno-title">${a.title}</div><div class="anno-text">${contentHtml}</div></div>`;
+            var unseen = normalizeAnnouncementsForDisplay(list).filter(function(announcement) {
+                var key = [announcement && announcement.title, announcement && announcement.content]
+                    .map(function(value) { return String(value == null ? '' : value).trim(); })
+                    .join('\u0001');
+                if (shownAnnouncementKeys.has(key)) return false;
+                shownAnnouncementKeys.add(key);
+                return true;
             });
-            document.getElementById('anno-list').innerHTML = html;
+            if (!unseen.length) return;
+
+            var container = document.getElementById('anno-list');
+            container.replaceChildren();
+            unseen.forEach(function(announcement) {
+                var item = document.createElement('div');
+                item.className = 'anno-item';
+                var title = document.createElement('div');
+                title.className = 'anno-title';
+                title.textContent = String((announcement && announcement.title) || '通知');
+                var content = document.createElement('div');
+                content.className = 'anno-text';
+                appendLinkifiedText(content, announcement && announcement.content);
+                item.appendChild(title);
+                item.appendChild(content);
+                container.appendChild(item);
+            });
             document.getElementById('announcement-modal').style.display = 'flex';
         }
 
-        function linkify(text) {
+        function appendLinkifiedText(container, text) {
+            var raw = String(text == null ? '' : text);
             var urlRegex = /(https?:\/\/[^\s]+)/g;
-            return text.replace(urlRegex, function (url) {
-                return '<a href="' + url + '" target="_blank">' + url + '</a>';
+            var cursor = 0;
+            raw.replace(urlRegex, function(url, offset) {
+                if (offset > cursor) container.appendChild(document.createTextNode(raw.slice(cursor, offset)));
+                try {
+                    var parsed = new URL(url);
+                    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('unsupported protocol');
+                    var link = document.createElement('a');
+                    link.href = parsed.href;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = url;
+                    container.appendChild(link);
+                } catch (error) {
+                    container.appendChild(document.createTextNode(url));
+                }
+                cursor = offset + url.length;
+                return url;
             });
+            if (cursor < raw.length) container.appendChild(document.createTextNode(raw.slice(cursor)));
         }
 
         function closeAnnouncement() { document.getElementById('announcement-modal').style.display = 'none'; }
@@ -1824,12 +2085,92 @@
         function goToToday() { currentCalDate = new Date(); renderCalendarGrid(gData.schedule); setTimeout(scrollToToday, 100); }
         function scrollToToday() { var todayEl = document.querySelector('.cal-cell.today'); if (todayEl) { todayEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
         function changeMonth(offset) { currentCalDate.setMonth(currentCalDate.getMonth() + offset); renderCalendarGrid(gData.schedule); }
-        function showAdminDashboard() { document.getElementById('admin-screen').style.display = 'block'; google.script.run.withSuccessHandler(function (c) { var s = document.getElementById('adminClassSelect'); s.innerHTML = '<option value="" disabled selected>請選擇年級</option>'; var eg = document.getElementById('evtGrade'); eg.innerHTML = '<option value="全體">全體 (全校公告)</option>'; c.forEach(x => { s.innerHTML += `<option value="${x}">${x}</option>`; eg.innerHTML += `<option value="${x}">${x}</option>`; }); }).getAllClassNames(); }
-        function loadAdminSubjects() { var g = document.getElementById('adminClassSelect').value; var s = document.getElementById('adminSubjectSelect'); var st = document.getElementById('adminStudentSelect'); s.innerHTML = '<option>載入中...</option>'; s.disabled = true; st.innerHTML = '<option value="" disabled selected>請先選擇科目</option>'; st.disabled = true; google.script.run.withSuccessHandler(function (c) { s.innerHTML = '<option value="" disabled selected>請選擇科目</option><option value="ALL">📋 全部學生</option>'; c.forEach(x => { s.innerHTML += `<option value="${x.code}">${x.name}</option>` }); s.disabled = false; }).getCourseCodesByGrade(g); }
-        function loadStudentList() { var c = document.getElementById('adminClassSelect').value; var o = document.getElementById('adminSubjectSelect').value; var s = document.getElementById('adminStudentSelect'); s.innerHTML = '<option>載入中...</option>'; s.disabled = true; google.script.run.withSuccessHandler(function (n) { s.innerHTML = '<option value="" disabled selected>請選擇學生</option>'; if (n.length == 0) s.innerHTML = '<option value="" disabled>無學生</option>'; n.map(normalizeStudentOption).forEach(x => { var value = x.id || x.name; var label = x.name + (x.id ? ` (${x.id})` : ""); s.innerHTML += `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>` }); s.disabled = false; }).getStudentsByGradeAndCourse(c, o); }
-        function loadCourseCodes() { var g = document.getElementById('evtGrade').value; var s = document.getElementById('evtCode'); if (g == '全體') { s.innerHTML = '<option value="全體" selected>全體 (全校事件)</option>'; return; } s.innerHTML = '<option>載入中...</option>'; s.disabled = true; google.script.run.withSuccessHandler(function (c) { s.innerHTML = '<option value="" disabled selected>請選擇課程</option><option value="全體">全體 (該年級公告)</option>'; c.forEach(x => { s.innerHTML += `<option value="${x.code}">${x.name} (${x.code})</option>` }); s.disabled = false; }).getCourseCodesByGrade(g); }
+        function resetSelect(select, placeholder, disabled) {
+            select.replaceChildren();
+            var option = new Option(String(placeholder || ''), '');
+            option.disabled = true;
+            option.selected = true;
+            select.add(option);
+            select.disabled = disabled === true;
+        }
 
-        function doAddEvent() {
+        function addSelectOption(select, label, value) {
+            select.add(new Option(String(label == null ? '' : label), String(value == null ? '' : value)));
+        }
+
+        function showAdminDashboard() {
+            document.getElementById('main-screen').style.display = 'none';
+            document.getElementById('admin-screen').style.display = 'flex';
+            google.script.run.withSuccessHandler(function(grades) {
+                var classSelect = document.getElementById('adminClassSelect');
+                var eventGrade = document.getElementById('evtGrade');
+                resetSelect(classSelect, '請選擇年級', false);
+                eventGrade.replaceChildren();
+                addSelectOption(eventGrade, '全體 (全校公告)', '全體');
+                normalizeFirebaseList(grades).forEach(function(grade) {
+                    addSelectOption(classSelect, grade, grade);
+                    addSelectOption(eventGrade, grade, grade);
+                });
+            }).withFailureHandler(onFail).getAllClassNames();
+        }
+
+        function loadAdminSubjects() {
+            var grade = document.getElementById('adminClassSelect').value;
+            var subject = document.getElementById('adminSubjectSelect');
+            var student = document.getElementById('adminStudentSelect');
+            resetSelect(subject, '載入中...', true);
+            resetSelect(student, '請先選擇科目', true);
+            google.script.run.withSuccessHandler(function(courses) {
+                resetSelect(subject, '請選擇科目', false);
+                addSelectOption(subject, '📋 全部學生', 'ALL');
+                normalizeFirebaseList(courses).forEach(function(course) {
+                    addSelectOption(subject, course && course.name, course && course.code);
+                });
+            }).withFailureHandler(onFail).getCourseCodesByGrade(grade);
+        }
+
+        function loadStudentList() {
+            var grade = document.getElementById('adminClassSelect').value;
+            var course = document.getElementById('adminSubjectSelect').value;
+            var studentSelect = document.getElementById('adminStudentSelect');
+            resetSelect(studentSelect, '載入中...', true);
+            google.script.run.withSuccessHandler(function(students) {
+                resetSelect(studentSelect, students && students.length ? '請選擇學生' : '無學生', false);
+                normalizeFirebaseList(students).map(normalizeStudentOption).forEach(function(student) {
+                    if (!student.id) return;
+                    var label = student.name + ' (' + student.id + ')';
+                    addSelectOption(studentSelect, label, student.id);
+                });
+            }).withFailureHandler(onFail).getStudentsByGradeAndCourse(grade, course);
+        }
+
+        function loadCourseCodes() {
+            var grade = document.getElementById('evtGrade').value;
+            var select = document.getElementById('evtCode');
+            select.replaceChildren();
+            if (grade === '全體') {
+                addSelectOption(select, '全體 (全校事件)', '全體');
+                select.disabled = false;
+                return;
+            }
+            resetSelect(select, '載入中...', true);
+            google.script.run.withSuccessHandler(function(courses) {
+                resetSelect(select, '請選擇課程', false);
+                addSelectOption(select, '全體 (該年級公告)', '全體');
+                normalizeFirebaseList(courses).forEach(function(course) {
+                    addSelectOption(select, String((course && course.name) || '') + ' (' + String((course && course.code) || '') + ')', course && course.code);
+                });
+            }).withFailureHandler(onFail).getCourseCodesByGrade(grade);
+        }
+
+        function createClientRequestId(prefix) {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return String(prefix || 'high') + '-' + window.crypto.randomUUID();
+            }
+            return String(prefix || 'high') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
+        }
+
+        async function doAddEvent() {
             var g = document.getElementById('evtGrade').value;
             var t = document.getElementById('evtType').value;
             var d = document.getElementById('evtDate').value;
@@ -1839,22 +2180,93 @@
             var tm = document.getElementById('evtTime').value;
             var cd = document.getElementById('evtCode').value;
 
-            if ((t === "正課" || t === "調課" || t === "停課") && !d) { alert("此類型必須填寫「事件日期」"); return; }
+            try {
+                requireGoogleAdminSession();
+            } catch (error) {
+                swalAlert('權限失效', callableErrorMessage(error), 'error');
+                return;
+            }
+            if ((t === "正課" || t === "調課" || t === "停課") && !d) {
+                swalAlert('資料不完整', '此類型必須填寫「事件日期」', 'warning');
+                return;
+            }
 
-            if (!confirm("確定發布？")) return;
+            if (!(await swalConfirm('確定發布？', '發布後會寫入正式行事曆。'))) return;
             document.getElementById('full-loader').style.display = 'flex';
 
-            var f = { grade: g, type: t, eventDate: d, startDate: sd, endDate: ed, content: c, time: tm, code: cd };
+            var f = { grade: g, type: t, eventDate: d, startDate: sd, endDate: ed, content: c, time: tm, code: cd, clientRequestId: createClientRequestId('calendar') };
             google.script.run.withSuccessHandler(function (r) {
                 document.getElementById('full-loader').style.display = 'none';
-                if (r.success) { alert("✅ 成功"); document.getElementById('evtContent').value = ""; }
-                else { alert("❌ " + r.msg); }
+                if (r && r.success) {
+                    document.getElementById('evtContent').value = "";
+                    swalAlert('發布成功', '行事曆已更新。', 'success');
+                } else {
+                    swalAlert('發布失敗', (r && r.msg) || '請稍後再試', 'error');
+                }
+            }).withFailureHandler(function(error) {
+                document.getElementById('full-loader').style.display = 'none';
+                swalAlert('發布失敗', callableErrorMessage(error), 'error');
             }).addCalendarEvent(f);
         }
 
-        function startGodMode() { var c = document.getElementById('adminClassSelect').value; var n = document.getElementById('adminStudentSelect').value; if (!c || !n) { alert("請選擇"); return; } document.getElementById('full-loader').style.display = 'flex'; clearRealtimeListeners(); isAdminMode = true; google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; if (r.success) { document.getElementById('admin-screen').style.display = 'none'; document.getElementById('appContainer').classList.add('admin-mode-border'); document.getElementById('god-mode-exit-btn').style.display = 'block'; enterStudentView(r); } else { alert(r.msg); } }).getStudentDataByAdmin(c, n, adminToken); }
-        function exitGodMode() { clearRealtimeListeners(); isAdminMode = false; gData = null; document.getElementById('main-screen').style.display = 'none'; document.getElementById('god-mode-exit-btn').style.display = 'none'; document.getElementById('appContainer').classList.remove('admin-mode-border'); document.getElementById('admin-screen').style.display = 'block'; }
-        function refreshData() { if (!gData) return; document.getElementById('full-loader').style.display = 'flex'; clearRealtimeListeners(); if (isAdminMode) { google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; enterStudentView(r); }).getStudentDataByAdmin(gData.student.grade, getStudentNodeId(gData) || gData.student.name, adminToken); } else { google.script.run.withSuccessHandler(function (r) { document.getElementById('full-loader').style.display = 'none'; enterStudentView(r); }).getStudentData(gData.student.name, gPass); } }
+        function startGodMode() {
+            var grade = document.getElementById('adminClassSelect').value;
+            var studentId = document.getElementById('adminStudentSelect').value;
+            if (!grade || !studentId) {
+                swalAlert('資料不完整', '請先選擇年級、科目與學生。', 'warning');
+                return;
+            }
+            document.getElementById('full-loader').style.display = 'flex';
+            clearRealtimeListeners();
+            google.script.run.withSuccessHandler(function(result) {
+                document.getElementById('full-loader').style.display = 'none';
+                if (!result || result.success !== true || !result.student) {
+                    isAdminMode = false;
+                    swalAlert('讀取失敗', (result && result.msg) || '找不到該學生', 'error');
+                    return;
+                }
+                isAdminMode = true;
+                shownAnnouncementKeys.clear();
+                document.getElementById('admin-screen').style.display = 'none';
+                document.getElementById('appContainer').classList.add('admin-mode-border');
+                document.getElementById('god-mode-exit-btn').style.display = 'block';
+                enterStudentView(result);
+            }).withFailureHandler(function(error) {
+                isAdminMode = false;
+                document.getElementById('full-loader').style.display = 'none';
+                swalAlert('讀取失敗', callableErrorMessage(error), 'error');
+            }).getStudentDataByAdmin(grade, studentId);
+        }
+
+        function exitGodMode() {
+            clearRealtimeListeners();
+            isAdminMode = false;
+            gData = null;
+            shownAnnouncementKeys.clear();
+            closeAnnouncement();
+            document.getElementById('main-screen').style.display = 'none';
+            document.getElementById('god-mode-exit-btn').style.display = 'none';
+            document.getElementById('appContainer').classList.remove('admin-mode-border');
+            document.getElementById('changePwdBtn').style.display = '';
+            document.getElementById('admin-screen').style.display = 'flex';
+        }
+
+        async function refreshData() {
+            if (!gData || !currentIdentityRef) return;
+            document.getElementById('full-loader').style.display = 'flex';
+            try {
+                var snapshot = await currentIdentityRef.once('value');
+                var value = snapshot.val();
+                if (!value) throw new Error('找不到目前資料，請重新登入');
+                value.success = true;
+                value.authRole = isAdminMode ? 'admin_preview' : (currentHighSession && currentHighSession.role);
+                enterStudentView(withStudentId(value, getStudentNodeId(gData)));
+            } catch (error) {
+                onFail(error);
+            } finally {
+                document.getElementById('full-loader').style.display = 'none';
+            }
+        }
         function onFail(e) {
             document.getElementById('full-loader').style.display = 'none';
             var msg = "";
@@ -1867,69 +2279,108 @@
             var loginScreen = document.getElementById('login-screen');
             var loginMsg = document.getElementById('loginMsg');
             if (loginScreen && loginScreen.style.display !== 'none' && loginMsg) {
-                loginMsg.innerText = "⚠️ 連線失敗，請稍後再試或重新整理頁面。(" + msg + ")";
+                loginMsg.innerText = "⚠️ " + callableErrorMessage(e, msg);
             } else {
-                // 非登入流程的失敗（如重整資料），顯示固定 banner
-                var banner = document.createElement('div');
-                banner.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#d32f2f;color:white;padding:10px 20px;border-radius:12px;z-index:9999;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,0.3);';
-                banner.innerText = '⚠️ 連線失敗，請重新整理頁面';
-                document.body.appendChild(banner);
-                setTimeout(function() { banner.remove(); }, 4000);
+                showUiBanner('連線失敗，請重新整理頁面', true);
+                var errorCode = String((e && e.code) || '').toLowerCase();
+                if (/permission-denied|unauthenticated|deadline-exceeded/.test(errorCode)) {
+                    doLogout();
+                }
             }
         }
-        function doLogout() { clearRealtimeListeners(); gData = null; isAdminMode = false; document.getElementById('main-screen').style.display = 'none'; document.getElementById('admin-screen').style.display = 'none'; document.getElementById('appContainer').classList.remove('admin-mode-border'); document.getElementById('god-mode-exit-btn').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; document.getElementById('loginPass').value = ""; document.getElementById('loginMsg').innerText = ""; }
+        async function doLogout() {
+            clearRealtimeListeners();
+            currentHighSession = null;
+            gData = null;
+            isAdminMode = false;
+            isFirstLoad = true;
+            shownAnnouncementKeys.clear();
+            closeAnnouncement();
+            closeCalendar();
+            closePwdModal();
+            document.getElementById('main-screen').style.display = 'none';
+            document.getElementById('admin-screen').style.display = 'none';
+            document.getElementById('appContainer').classList.remove('admin-mode-border');
+            document.getElementById('god-mode-exit-btn').style.display = 'none';
+            document.getElementById('changePwdBtn').style.display = '';
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('loginPass').value = "";
+            document.getElementById('loginMsg').innerText = "";
+            await highAuth.signOut().catch(function(error) {
+                console.warn('Firebase 登出失敗:', error);
+            });
+        }
 
         // 🔴 修正：renderSchedule 函式，同步更新顏色邏輯
         function renderSchedule(e, f) {
             var l = document.getElementById('schedule-list');
-            var de = f ? e.filter(x => x.code === f) : e;
+            var de = normalizeFirebaseList(e).filter(function(item) {
+                return item && (!f || item.code === f);
+            });
             if (de.length == 0) { l.innerHTML = "<div style='text-align:center;padding:30px;color:#b0bec5;'>無課程</div>"; return; }
             var h = "";
             de.forEach(x => {
+                var eventType = String((x && x.type) || '');
+                var eventTitle = String((x && x.title) || '');
+                var eventNote = String((x && x.note) || '');
                 var cc = "card";
-                if (x.type === "輔導") cc += " tutoring";
-                else if (x.type.includes("放假") || x.type === "停課" || x.status === "suspended") cc += " holiday";
-                else if (x.type === "調課") cc += " modified";
-                else if (x.type === "加課") cc += " added";
-                else if (x.type === "公告") cc += " announcement";
+                if (eventType === "輔導") cc += " tutoring";
+                else if (eventType.includes("放假") || eventType === "停課" || x.status === "suspended") cc += " holiday";
+                else if (eventType === "調課") cc += " modified";
+                else if (eventType === "加課") cc += " added";
+                else if (eventType === "公告") cc += " announcement";
 
                 var th = "";
-                if (x.type === "模考") th = `<span class="tag exam">模考</span>`;
-                else if (x.type === "輔導") th = `<span class="tag tutoring">輔導</span>`;
-                else if (x.type.includes("放假") || x.type === "停課" || x.status === "suspended") th = `<span class="tag holiday">${x.type}</span>`;
-                else if (x.type === "調課") th = `<span class="tag modified">調課</span>`;
-                else if (x.type === "加課") th = `<span class="tag added">加課</span>`;
-                else if (x.type === "公告") th = `<span class="tag announcement">公告</span>`;
+                if (eventType === "模考") th = `<span class="tag exam">模考</span>`;
+                else if (eventType === "輔導") th = `<span class="tag tutoring">輔導</span>`;
+                else if (eventType.includes("放假") || eventType === "停課" || x.status === "suspended") th = `<span class="tag holiday">${escapeHtml(eventType)}</span>`;
+                else if (eventType === "調課") th = `<span class="tag modified">調課</span>`;
+                else if (eventType === "加課") th = `<span class="tag added">加課</span>`;
+                else if (eventType === "公告") th = `<span class="tag announcement">公告</span>`;
                 else th = `<span class="tag">正課</span>`;
 
                 var tc = "title"; if (x.status === "cancelled") tc += " status-cancelled";
-                var nh = ""; if (x.note && x.note.trim() !== "" && x.note.trim() !== x.title.trim()) nh = `<div class="schedule-note">${x.note}</div>`;
-                h += `<div class="${cc}"><div class="date-row"><span class="date-text">📅 ${x.date} (${getDayName(x.date)})</span>${th}</div><div class="${tc}">${x.title}</div>${nh}<div class="time">⏰ ${x.time}</div></div>`;
+                var nh = "";
+                if (eventNote.trim() && eventNote.trim() !== eventTitle.trim()) {
+                    nh = `<div class="schedule-note">${escapeHtml(eventNote)}</div>`;
+                }
+                h += `<div class="${cc}" data-date="${escapeHtml(x && x.date)}"><div class="date-row"><span class="date-text">📅 ${escapeHtml(x && x.date)} (${escapeHtml(getDayName(x && x.date))})</span>${th}</div><div class="${tc}">${escapeHtml(eventTitle)}</div>${nh}<div class="time">⏰ ${escapeHtml(x && x.time)}</div></div>`;
             });
             l.innerHTML = h;
         }
 
         function renderGrades(g) {
             var d = document.getElementById('tab-2').querySelector('.scroll-container');
-            if (g.length == 0) { d.innerHTML = "<div style='text-align:center;color:#aaa;margin-top:30px;'>無成績</div>"; return; }
+            g = normalizeGradeEntries(g);
+            if (!g.some(function(entry) { return entry && typeof entry === 'object'; })) {
+                d.innerHTML = "<div style='text-align:center;color:#aaa;margin-top:30px;'>無成績</div>";
+                return;
+            }
             var h = "<div class='card'>";
             g.forEach((x, i) => {
+                if (!x || typeof x !== 'object') return;
                 var cId = "sb-" + i;
                 var ct = "";
-                var l1 = x.line1 ? `<div class="exam-line1">${x.line1}</div>` : "";
-                var l2 = x.line2 ? `<div class="exam-line2">${x.line2}</div>` : "";
-                var tm = x.main;
+                var l1 = x.line1 ? `<div class="exam-line1">${escapeHtml(x.line1)}</div>` : "";
+                var l2 = x.line2 ? `<div class="exam-line2">${escapeHtml(x.line2)}</div>` : "";
+                var tm = escapeHtml(x.main);
                 if (hasScoreValue(x.score)) {
                     if (x.isPending) ct = renderPendingScore(x.score, x.syncStatus);
-                    else { var sc = (x.score < 60) ? 'score-red' : ''; ct = `<div class="score-wrapper"><div class="score-val ${sc}">${x.score}<span class="score-unit">分</span></div></div>`; }
+                    else { var sc = (Number(x.score) < 60) ? 'score-red' : ''; ct = `<div class="score-wrapper"><div class="score-val ${sc}">${escapeHtml(x.score)}<span class="score-unit">分</span></div></div>`; }
+                } else if (isAdminMode || !currentHighSession || currentHighSession.role !== 'student') {
+                    ct = `<div class="score-wrapper"><span class="pending-text">尚未回報</span></div>`;
                 } else {
-                    var encodedExam = encodeURIComponent(x.examRaw || "");
-                    ct = `<div id="${cId}" class="score-input-group"><span style="color:var(--danger);font-weight:bold;font-size:0.9rem;">未回報</span><input type="number" class="score-input" id="in-${i}"><button class="submit-btn" onclick="submitScoreUI(${i},decodeURIComponent('${encodedExam}'))">送出</button></div>`;
+                    ct = `<div id="${cId}" class="score-input-group"><span style="color:var(--danger);font-weight:bold;font-size:0.9rem;">未回報</span><input type="number" step="any" inputmode="decimal" class="score-input" id="in-${i}" aria-label="${escapeHtml(String(x.main || x.examRaw || '成績'))}"><button class="submit-btn" type="button" data-score-index="${i}">送出</button></div>`;
                 }
                 h += `<div class="score-row"><div class="exam-name-container">${l1}${l2}<div class="exam-main">${tm}</div></div>${ct}</div>`;
             });
             h += "</div>";
             d.innerHTML = h;
+            d.querySelectorAll('[data-score-index]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    submitScoreUI(Number(button.dataset.scoreIndex));
+                });
+            });
         }
 
         function renderPendingScore(score, syncStatus) {
@@ -1938,62 +2389,101 @@
             if (syncStatus === "queued") { label = "等待同步"; cls = " sync-queued"; }
             else if (syncStatus === "processing") { label = "同步中"; cls = " sync-queued"; }
             else if (syncStatus === "failed") { label = "等待重試"; cls = " sync-failed"; }
-            return `<div class="score-wrapper"><div class="score-val" style="color:var(--primary);">${score}<span class="score-unit">分</span></div><span class="pending-text${cls}">(${label})</span></div>`;
+            return `<div class="score-wrapper"><div class="score-val" style="color:var(--primary);">${escapeHtml(score)}<span class="score-unit">分</span></div><span class="pending-text${cls}">(${escapeHtml(label)})</span></div>`;
         }
 
-        async function submitScoreUI(i, n) {
+        async function submitScoreUI(i) {
+            if (isAdminMode || !currentHighSession || currentHighSession.role !== 'student') {
+                swalAlert('禁止操作', '目前身分不能回報學生分數。', 'warning');
+                return;
+            }
             var input = document.getElementById('in-' + i);
             if (!input) return;
-            var v = input.value;
-            if (!v) return;
-
-            var c = document.getElementById('sb-' + i);
-            var studentId = getStudentNodeId(gData) || toStudentKey(gData.student.name);
-            var studentKey = toFirebaseKey(studentId);
-            var queueKey = buildScoreQueueKey(gData.student.grade, studentId, n);
-            var now = firebase.database.ServerValue.TIMESTAMP;
-            var queueItem = {
-                grade: gData.student.grade,
-                studentId: studentId,
-                name: gData.student.name,
-                exam: n,
-                score: v,
-                gradeIndex: i,
-                status: "queued",
-                source: "bearhigh-app",
-                createdAt: now,
-                updatedAt: now
-            };
-
-            if (c) c.outerHTML = renderPendingScore(v, "queued");
-
-            if (!gData.grades) gData.grades = [];
-            var previousGrade = Object.assign({}, gData.grades[i] || {});
-            if (!gData.grades[i]) gData.grades[i] = {};
-            gData.grades[i].score = v;
-            gData.grades[i].isPending = true;
-            gData.grades[i].syncStatus = "queued";
-            gData.grades[i].queueKey = queueKey;
-
-            var updates = {};
-            updates['/high/scoreQueue/' + queueKey] = queueItem;
-            updates['/high/students/' + studentKey + '/grades/' + i + '/score'] = v;
-            updates['/high/students/' + studentKey + '/grades/' + i + '/isPending'] = true;
-            updates['/high/students/' + studentKey + '/grades/' + i + '/syncStatus'] = "queued";
-            updates['/high/students/' + studentKey + '/grades/' + i + '/queueKey'] = queueKey;
+            var score = String(input.value || '').trim();
+            if (!score) {
+                swalAlert('尚未輸入', '請先輸入要回報的分數。', 'warning');
+                return;
+            }
+            var gradeEntry = gData && gData.grades && gData.grades[i];
+            var exam = String((gradeEntry && gradeEntry.examRaw) || '').trim();
+            if (!gradeEntry || !exam) {
+                swalAlert('資料已更新', '找不到這個考試，請重新整理後再試。', 'warning');
+                return;
+            }
+            var button = document.querySelector('[data-score-index="' + i + '"]');
+            if (button) {
+                button.disabled = true;
+                button.textContent = '送出中';
+            }
 
             try {
-                await db.ref().update(updates);
-                kickScoreQueueProcessor(queueKey);
-            } catch (e) {
-                gData.grades[i] = previousGrade;
+                var callable = highFunctions.httpsCallable('submitHighScore');
+                var result = await callable({
+                    gradeIndex: i,
+                    exam: exam,
+                    score: score,
+                    clientRequestId: createClientRequestId('score')
+                });
+                var response = result && result.data;
+                if (!response || response.success !== true || !response.queueKey) {
+                    throw new Error('成績回報服務沒有回傳 queue key');
+                }
+                gData.grades[i].score = score;
+                gData.grades[i].isPending = true;
+                gData.grades[i].syncStatus = String(response.status || 'queued');
+                gData.grades[i].queueKey = response.queueKey;
                 renderGrades(gData.grades);
-                alert("目前網路不穩，成績尚未送出，請再按一次。");
+                kickScoreQueueProcessor(response.queueKey);
+            } catch (error) {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = '送出';
+                }
+                swalAlert('成績尚未送出', callableErrorMessage(error, '目前網路不穩，請再按一次。'), 'error');
             }
         }
-        function renderCalendarGrid(e) { var g = document.getElementById('cal-grid'); var y = currentCalDate.getFullYear(); var m = currentCalDate.getMonth(); document.getElementById('cal-nav-title').innerText = y + "年 " + (m + 1) + "月"; var dh = ['日', '一', '二', '三', '四', '五', '六']; var h = ""; dh.forEach(d => h += `<div class="cal-header">${d}</div>`); var fd = new Date(y, m, 1).getDay(); var dm = new Date(y, m + 1, 0).getDate(); var t = new Date(); for (let i = 0; i < fd; i++)h += `<div></div>`; for (let d = 1; d <= dm; d++) { var ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; var evs = e.filter(x => x.date === ds && x.status !== "cancelled"); var cls = "cal-cell"; if (d === t.getDate() && m === t.getMonth() && y === t.getFullYear()) cls += " today"; var eh = ""; var u = new Set(); evs.forEach(x => { var st = x.title.replace(/高[一二三]/, '').replace(/數學/, '數').replace(/物理/, '物').replace(/化學/, '化').replace(/英文/, '英').substring(0, 4); if (!u.has(st)) { u.add(st); var dc = "cal-dot"; if (x.type === "輔導") dc += " tutoring"; else if (x.type.includes("放假") || x.type === "停課" || x.status === "suspended") dc += " holiday"; else if (x.type === "模考") dc += " exam"; if (x.type !== "彈窗") eh += `<div class="${dc}">${st}</div>`; } }); h += `<div class="${cls}"><div class="cal-date">${d}</div>${eh}</div>`; } g.innerHTML = h; }
-        function switchTab(i) { document.querySelectorAll('.tab-item').forEach((t, k) => { if (k === i) t.classList.add('active'); else t.classList.remove('active'); }); document.getElementById('tab-0').style.display = (i === 0) ? 'flex' : 'none'; document.getElementById('tab-1').style.display = (i === 1) ? 'flex' : 'none'; document.getElementById('tab-2').style.display = (i === 2) ? 'flex' : 'none'; if (i === 1) backToCourseList(); if (i === 0) { setTimeout(scrollToTodayList, 100); } else { window.scrollTo(0, 0); } }
-        function getDayName(d) { return ['日', '一', '二', '三', '四', '五', '六'][new Date(d).getDay()]; }
+        function renderCalendarGrid(events) {
+            var grid = document.getElementById('cal-grid');
+            var year = currentCalDate.getFullYear();
+            var month = currentCalDate.getMonth();
+            document.getElementById('cal-nav-title').innerText = year + "年 " + (month + 1) + "月";
+            var dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+            var html = "";
+            dayHeaders.forEach(function(day) { html += `<div class="cal-header">${day}</div>`; });
+            var firstDay = new Date(year, month, 1).getDay();
+            var daysInMonth = new Date(year, month + 1, 0).getDate();
+            var today = new Date();
+            for (var blank = 0; blank < firstDay; blank++) html += `<div></div>`;
+            for (var day = 1; day <= daysInMonth; day++) {
+                var dateString = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                var dayEvents = normalizeFirebaseList(events).filter(function(event) {
+                    return event && event.date === dateString && event.status !== "cancelled";
+                });
+                var cellClass = "cal-cell";
+                if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) cellClass += " today";
+                var eventHtml = "";
+                var seen = new Set();
+                dayEvents.forEach(function(event) {
+                    var eventType = String(event.type || '');
+                    var shortTitle = String(event.title || '').replace(/高[一二三]/, '').replace(/數學/, '數').replace(/物理/, '物').replace(/化學/, '化').replace(/英文/, '英').substring(0, 4);
+                    if (seen.has(shortTitle)) return;
+                    seen.add(shortTitle);
+                    var dotClass = "cal-dot";
+                    if (eventType === "輔導") dotClass += " tutoring";
+                    else if (eventType.includes("放假") || eventType === "停課" || event.status === "suspended") dotClass += " holiday";
+                    else if (eventType === "模考") dotClass += " exam";
+                    if (eventType !== "彈窗") eventHtml += `<div class="${dotClass}">${escapeHtml(shortTitle)}</div>`;
+                });
+                html += `<div class="${cellClass}"><div class="cal-date">${day}</div>${eventHtml}</div>`;
+            }
+            grid.innerHTML = html;
+        }
+
+        function getDayName(dateString) {
+            var parts = String(dateString || '').split('-').map(Number);
+            if (parts.length !== 3 || !parts.every(Number.isFinite)) return '';
+            return ['日', '一', '二', '三', '四', '五', '六'][new Date(parts[0], parts[1] - 1, parts[2]).getDay()] || '';
+        }
 
         // 從課程代碼與當前時間推斷學生年級顯示（如「114學年度 高二上學期」）
         function inferGradeDisplay(courses, fallback) {
@@ -2012,7 +2502,7 @@
             var maxYear = 0, maxGrade = 0, maxSem = 0;
 
             courses.forEach(function(code) {
-                var m = code.match(/^\[(\d+)-(\d)-(\d)\]/);
+                var m = String(code || '').match(/^\[(\d+)-(\d)-(\d)\]/);
                 if (m) {
                     var y = parseInt(m[1]), g = parseInt(m[2]), s = parseInt(m[3]);
                     // 記錄所有課程中的最新資訊 (Fallback)
