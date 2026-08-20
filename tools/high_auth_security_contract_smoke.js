@@ -169,6 +169,16 @@ checkIncludes(html, 'height: 100dvh;', '現代瀏覽器應使用動態 viewport'
 assert.ok(!html.includes('user-scalable=no'), '不可禁止使用者縮放');
 checkIncludes(html, '.score-row {', '成績列 RWD 樣式不可遺失');
 checkIncludes(html, 'flex-wrap: wrap;', '窄螢幕成績列必須可換行');
+assert.ok(
+  /\.exam-name-container\s*\{[^}]*\bmin-width:\s*0\s*;[^}]*\}/s.test(html),
+  '考試名稱 flex item 必須允許縮小，避免把回報控制項推出畫面'
+);
+['exam-line1', 'exam-line2', 'exam-main'].forEach((className) => {
+  assert.ok(
+    new RegExp(`\\.${className}\\s*\\{[^}]*overflow-wrap:\\s*anywhere\\s*;[^}]*\\}`, 's').test(html),
+    `${className} 必須允許無空白長字串換行`
+  );
+});
 
 // 所有 inline scripts 都要能被 JavaScript parser 接受。
 const scripts = Array.from(html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi));
